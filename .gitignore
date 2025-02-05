@@ -1,0 +1,19 @@
+# Node modules (jika nanti pakai package.json)
+node_modules/
+
+# Vercel build output
+.vercel/
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Log files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Editor-specific files
+.vscode/
+.idea/
+*.swp

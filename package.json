@@ -1,0 +1,13 @@
+{
+  "name": "neurapills",
+  "version": "1.0.0",
+  "description": "Real-time tablet counter web application",
+  "scripts": {
+    "start": "vercel dev",
+    "deploy": "vercel deploy --prod"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "vercel": "^latest"
+  }
+}

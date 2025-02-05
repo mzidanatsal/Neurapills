@@ -254,14 +254,14 @@
 
                 // Gaussian Blur
                 const blurred = new cv.Mat();
-                cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0);
+                cv.GaussianBlur(gray, blurred, new cv.Size(3, 3), 0);
 
                 // Thresholding
                 const thresh = new cv.Mat();
                 cv.threshold(blurred, thresh, 199, 255, cv.THRESH_BINARY_INV);
 
                 // Noise removal
-                const kernel = cv.Mat.ones(5, 5, cv.CV_8U);
+                const kernel = cv.Mat.ones(3, 3, cv.CV_8U);
                 const opening = new cv.Mat();
                 cv.morphologyEx(thresh, opening, cv.MORPH_OPEN, kernel);
 

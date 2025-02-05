@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time Tablet Counter</title>
+    <style>
+        /* Animasi */
+        @keyframes fadeInScaleUp {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            background: linear-gradient(140deg, #2eaafa 0%, #1f2f98 60%);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #fff;
+            padding: 20px;
+            animation: fadeInScaleUp 1s ease-in-out;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 24px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+            padding: 40px;
+            width: 100%;
+            max-width: 500px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        h1 {
+            color: #4a4a4a;
+            font-weight: 700;
+            margin-bottom: 20px;
+            background: linear-gradient(to right, #2eaafa, #1f2f98);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Modified video container and related elements */
+        .video-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 1/1;  /* Square aspect ratio */
+            background: #f4f4f4;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        #video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 16px;
+        }
+
+        #canvasOutput, #processedCanvas {
+            width: 100% !important;
+            aspect-ratio: 1/1;  /* Square aspect ratio */
+            border-radius: 16px;
+            object-fit: contain;
+            background: #f4f4f4;
+            margin-top: 20px;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+
+        button {
+            background: linear-gradient(to right, #2eaafa, #1f2f98);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 50px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 20px rgba(118, 75, 162, 0.3);
+        }
+
+        button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 15px 25px rgba(118, 75, 162, 0.4);
+        }
+
+        button:disabled {
+            background: #b0b0b0;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        #status {
+            color: #4a4a4a;
+            font-weight: 500;
+            margin: 15px 0;
+        }
+
+        #countOutput {
+            font-size: 1.5em;
+            font-weight: 700;
+            color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+            padding: 15px;
+            border-radius: 12px;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+                margin: 0 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Rest of the HTML remains the same -->
+    <div class="container">
+        <h1>Welcome to Neurapills</h1>
+        <div id="status">Loading OpenCV.js...</div>
+        
+        <div class="video-container">
+            <video id="video" autoplay playsinline></video>
+        </div>
+        
+        <div class="controls">
+            <button id="startCamera">Start Camera</button>
+            <button id="switchCamera" disabled>Switch Camera</button>
+            <button id="captureButton" disabled>Capture & Count</button>
+        </div>
+
+        <canvas id="canvasOutput"></canvas>
+        <canvas id="processedCanvas"></canvas>
+        <p id="countOutput"></p>
+    </div>
+
+    <script async src="https://docs.opencv.org/4.8.0/opencv.js" onload="onOpenCvReady();" onerror="onOpenCvError();"></script>
+
+    <script>
+        // Previous JavaScript code remains the same, but modify the capture part
+        let video = document.getElementById('video');
+        let canvasOutput = document.getElementById('canvasOutput');
+        let processedCanvas = document.getElementById('processedCanvas');
+        let startButton = document.getElementById('startCamera');
+        let switchButton = document.getElementById('switchCamera');
+        let captureButton = document.getElementById('captureButton');
+        let status = document.getElementById('status');
+        let countOutput = document.getElementById('countOutput');
+        let streaming = false;
+        let currentFacingMode = 'environment';
+
+        async function checkCameraAvailability() {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const videoDevices = devices.filter(device => device.kind === 'videoinput');
+            switchButton.style.display = videoDevices.length > 1 ? 'block' : 'none';
+        }
+
+        function onOpenCvReady() {
+            status.innerHTML = 'Neurapills is ready! Click "Start Camera" to begin.';
+            startButton.disabled = false;
+            checkCameraAvailability();
+        }
+
+        function onOpenCvError() {
+            status.innerHTML = 'Failed to load OpenCV.js. Please check your internet connection and refresh the page.';
+        }
+
+        async function startCamera() {
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
+            }
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        facingMode: currentFacingMode,
+                        aspectRatio: 1, // Request square aspect ratio
+                        width: { ideal: 1024 },
+                        height: { ideal: 1024 }
+                    }, 
+                    audio: false 
+                });
+                video.srcObject = stream;
+                streaming = true;
+                startButton.disabled = true;
+                switchButton.disabled = false;
+                captureButton.disabled = false;
+                status.innerHTML = 'Camera is ready! Click "Capture & Count" to analyze tablets.';
+            } catch (err) {
+                console.error('Error accessing camera:', err);
+                status.innerHTML = 'Error accessing camera. Please make sure you have given camera permissions.';
+            }
+        }
+
+        startButton.addEventListener('click', startCamera);
+
+        switchButton.addEventListener('click', async () => {
+            currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
+            await startCamera();
+        });
+
+        captureButton.addEventListener('click', () => {
+            if (!streaming) return;
+
+            // Set canvas sizes to match video dimensions while maintaining aspect ratio
+            const size = Math.min(video.videoWidth, video.videoHeight);
+            const startX = (video.videoWidth - size) / 2;
+            const startY = (video.videoHeight - size) / 2;
+
+            // Set both canvases to the same square size
+            canvasOutput.width = size;
+            canvasOutput.height = size;
+            processedCanvas.width = size;
+            processedCanvas.height = size;
+
+            // Capture current video frame as a square
+            const ctx = canvasOutput.getContext('2d');
+            ctx.drawImage(video, startX, startY, size, size, 0, 0, size, size);
+
+            try {
+                status.innerHTML = 'Processing image...';
+                captureButton.disabled = true;
+
+                // New Counting Code Integration
+                let src = cv.imread(canvasOutput);
+
+                // Convert to grayscale
+                const gray = new cv.Mat();
+                cv.cvtColor(src, gray, cv.COLOR_BGR2GRAY);
+
+                // Gaussian Blur
+                const blurred = new cv.Mat();
+                cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0);
+
+                // Thresholding
+                const thresh = new cv.Mat();
+                cv.threshold(blurred, thresh, 199, 255, cv.THRESH_BINARY_INV);
+
+                // Noise removal
+                const kernel = cv.Mat.ones(3, 3, cv.CV_8U);
+                const opening = new cv.Mat();
+                cv.morphologyEx(thresh, opening, cv.MORPH_OPEN, kernel);
+
+                // Sure foreground
+                const sureFg = new cv.Mat();
+                cv.dilate(opening, sureFg, kernel, new cv.Point(-1, -1), 7);
+
+                // Sure background
+                const distTransform = new cv.Mat();
+                cv.distanceTransform(opening, distTransform, cv.DIST_L2, 5);
+
+                const sureBg = new cv.Mat();
+                cv.threshold(distTransform, sureBg, 0.7 * distTransform.maxVal, 255, cv.THRESH_BINARY);
+
+                //Morphological Closing
+                const closed = new cv.Mat();
+                cv.morphologyEx(sureFg, closed, cv.MORPH_CLOSE, kernel);
+
+                // Edge detection
+                const canny = new cv.Mat();
+                cv.Canny(closed, canny, 50, 100);
+
+                // Dilate edges
+                const dilated = new cv.Mat();
+                cv.dilate(canny, dilated, kernel);
+
+                // Find contours
+                const contours = new cv.MatVector();
+                const hierarchy = new cv.Mat();
+                cv.findContours(dilated, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_NONE);
+
+                // Draw contours
+                const rgb = new cv.Mat();
+                cv.cvtColor(src, rgb, cv.COLOR_BGR2RGB);
+
+                // Calculate Areas
+                const areas = [];
+                for (let i = 0; i < contours.size(); i++) {
+                    const area = cv.contourArea(contours.get(i));
+                    if (area > 0) areas.push(area);
+                }
+
+                // Calculate Mean Area
+                const meanArea = areas.length > 0 
+                    ? areas.reduce((a, b) => a + b, 0) / areas.length 
+                    : 0;
+                console.log(`Rata-rata area: ${meanArea.toFixed(2)}`);
+
+                // Process Contours
+                const validContours = [];
+                for (let i = 0; i < contours.size(); i++) {
+                    const cnt = contours.get(i);
+                    const area = cv.contourArea(cnt);
+                    const perimeter = cv.arcLength(cnt, true);
+                    
+                    // Circularity calculation
+                    const circularity = perimeter > 0 
+                        ? (4 * Math.PI * area) / (perimeter * perimeter) 
+                        : 0;
+
+                    // Bounding Rectangle
+                    const rect = cv.boundingRect(cnt);
+                    const aspectRatio = rect.width > 0 ? rect.width / rect.height : 0;
+
+                    // Convex Hull and Solidity
+                    const hull = new cv.Mat();
+                    cv.convexHull(cnt, hull);
+                    const hullArea = cv.contourArea(hull);
+                    const solidity = hullArea > 0 ? area / hullArea : 0;
+
+                    // Filter based on area
+                    if (area > 0.5 * meanArea) {
+                        // Draw valid contours in green
+                        cv.drawContours(rgb, contours, i, [0, 255, 0, 255], 2);
+                        validContours.push(cnt);
+                    } else {
+                        // Draw invalid contours in red
+                        cv.drawContours(rgb, contours, i, [255, 0, 0, 255], 1);
+                    }
+                }
+
+                // Show results
+                cv.imshow(processedCanvas, rgb);
+                countOutput.textContent = `Jumlah pil valid terdeteksi: ${validContours.length}`;
+                status.innerHTML = 'Processing complete!';
+
+                [src, gray, blurred, thresh, kernel, opening, sureFg, distTransform, sureBg, canny, closed, dilated, contours, hierarchy, rgb].forEach(mat => {
+                    if (mat && !mat.isDeleted) mat.delete();
+                });
+
+            } catch (err) {
+                console.error('Error processing image:', err);
+                status.innerHTML = 'Error processing image: ' + err.message;
+            } finally {
+                captureButton.disabled = false;
+            }
+        });
+
+        window.addEventListener('beforeunload', () => {
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
+            }
+        });
+    </script>
+</body>
+</html>

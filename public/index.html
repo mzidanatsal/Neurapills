@@ -258,7 +258,7 @@
 
                 // Thresholding
                 const thresh = new cv.Mat();
-                cv.threshold(blurred, thresh, 199, 255, cv.THRESH_BINARY_INV);
+                cv.threshold(blurred, thresh, 190, 255, cv.THRESH_BINARY_INV);
 
                 // Noise removal
                 const kernel = cv.Mat.ones(5, 5, cv.CV_8U);
